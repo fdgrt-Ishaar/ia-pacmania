@@ -1,6 +1,8 @@
 # ia-pacmania
 Aim is to test vibe coding by recreating a clone of Pacmania in 3D for fun
 
+<img width="2614" height="1386" alt="screenshot" src="https://github.com/user-attachments/assets/e2917d91-a140-44aa-8d45-f19d32cb0f71" />
+
 Goal of this demo was to test how far I could go wih Gemini 3 Pro + Anitgravity before the source code goes ... too hard to maintain and read! ;-)
 
 From a technical perspective, this a selfcontained single HTML file with 2D graphics (generated wiht Banana Pro), musics gathered from https://chiptune.app/?q=pacmania, samples come from https://sounds.spriters-resource.com/arcade/pacmania/asset/439130/
