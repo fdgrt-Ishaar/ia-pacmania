@@ -2,6 +2,8 @@
 Aim is to test vibe coding by recreating a clone of Pacmania in 3D for fun
 
 <img width="2614" height="1386" alt="screenshot" src="https://github.com/user-attachments/assets/e2917d91-a140-44aa-8d45-f19d32cb0f71" />
+Give it a try! 
+https://ia-sandbox-2d48d.web.app/ia-pacmania.html
 
 # 🎮 About the Project
 
