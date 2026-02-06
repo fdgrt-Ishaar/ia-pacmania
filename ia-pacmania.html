@@ -344,6 +344,27 @@
       cursor: pointer;
     }
 
+    /* --- CUTSCENE CONTAINER (3/4 SCREEN) --- */
+    #cutscene-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 75vw;
+      height: 75vh;
+      z-index: 200;
+      display: none;
+      box-shadow: 0 0 50px rgba(0,0,0,0.8);
+    }
+
+    #sceneCanvas, #overlayCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
     #confetti-canvas {
       position: absolute;
       top: 0;
@@ -427,7 +448,7 @@
   <!-- VIEW MODE INDICATOR -->
   <div id="view-mode-indicator">
     <div id="view-icon"></div>
-    <div id="game-version">v2.9.4</div>
+    <div id="game-version">v2.9.5</div>
   </div>
 
   <!-- DEBUG UI -->
@@ -549,7 +570,13 @@
         ">
       HIGHSCORES
     </h2>
-    <canvas id="info-canvas" width="500" height="600"></canvas>
+    <canvas id="info-canvas" width="550" height="600"></canvas>
+  </div>
+
+  <!-- Cut scenes -->
+  <div id="cutscene-container">
+      <canvas id="sceneCanvas"></canvas>
+      <canvas id="overlayCanvas"></canvas>
   </div>
 
   <script>
@@ -1399,16 +1426,16 @@
 
       // LIGNE 1 : PAC-GOMME
       let y = startY;
-      drawPellet(100, y, false);
+      drawPellet(80, y, false);
       ctx.fillStyle = "#FFFFFF";
       ctx.textAlign = "left";
-      ctx.fillText("PAC-GUM ......... 10 PTS", 150, y);
+      ctx.fillText("PAC-GUM ......... 10 PTS", 110, y);
 
       // LIGNE 2 : SUPER PAC-GOMME
       y += lineHeight;
-      drawPellet(100, y, true);
+      drawPellet(80, y, true);
       ctx.fillStyle = "#FFFFFF";
-      ctx.fillText("SUPER GUM ....... 50 PTS", 150, y);
+      ctx.fillText("SUPER GUM ....... 50 PTS", 110, y);
 
       // LIGNE 3 : FANTÔMES (Séquence)
       y += lineHeight * 1.5;
@@ -1417,8 +1444,8 @@
       ctx.fillText("GHOSTS BONUS", w / 2, y - 40);
 
       // Dessiner 6 fantômes bleus alignés avec scores progressifs
-      // Formule actuelle du jeu : 100 + (n-1)*50
-      const ghostScores = [150, 225, 300, 375, 450, 525];
+      // Formule actuelle du jeu :
+      const ghostScores = [200, 400, 800, 1600, 3200, 6400];
       const startX = 80;
       const gapX = 80;
 
@@ -1443,16 +1470,16 @@
       y += lineHeight * 2.5;
 
       // Dessin Pacman 1UP
-      drawPacman(80, y, 1, 1.5);
+      drawPacman(120, y, 1, 1.5);
       ctx.fillStyle = "#FFFF00";
       ctx.textAlign = "left";
-      ctx.fillText("BONUS LIFE", 130, y - 10);
+      ctx.fillText("BONUS LIFE", 170, y - 10);
 
       ctx.fillStyle = "#FFFFFF";
       ctx.font = '12px "Press Start 2P"';
-      ctx.fillText(CONFIG.GAME.NEXT_LIFE_THRESHOLD_START + " PTS", 130, y + 15);
+      ctx.fillText(CONFIG.GAME.NEXT_LIFE_THRESHOLD_START + " PTS", 170, y + 15);
       ctx.fillStyle = "#AAAAAA";
-      ctx.fillText("THEN EVERY " + CONFIG.GAME.NEXT_LIFE_THRESHOLD_STEP + " PTS", 130, y + 35);
+      ctx.fillText("THEN EVERY " + CONFIG.GAME.NEXT_LIFE_THRESHOLD_STEP + " PTS", 170, y + 35);
     }
 
     function initEditorPalette() {
@@ -1681,6 +1708,9 @@
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     const audioCtx = new AudioContext();
 
+    let cutsceneManager = null;
+
+
     // ------------------------------------------------------------------
     // ZONE 1 : INTEGREZ ICI LE CONTENU DE mdx_player.js
     // ------------------------------------------------------------------
@@ -1860,6 +1890,8 @@
     const PACMAN_S_PARK_SOUND_BASE64 = "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";
     const SANDBOX_LAND_SOUN_BASE64 = "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";
     const JUNGLY_STEPS_SOUND_BASE64 = "H4sICLt/fmkAA1BNNC5NRFgApVRNbBtFFF7/xNnd2Fj4PVeJt5KdSGgHIcShJY0qhBuhHEACtQJxAQmVItQqKpVCDzUHnGxjlCKuICEDJoGSFOM4TtwYd+VuiGUsQ8QJceXCkQMGCUdaN2FmN3a8zrp1xc7u22/mfW/e+96sfXbyublPX5x86fnJCLnw+DvnL1+4EonMnVEuKVeVy8rbyrRyjc5mlHeVt5QryszcmUjkzVhEuaVsK3/5xBAn/sahY8z9lHt3YMuzwJ8XkuKvu/v7f94bbrr0WS6J8ejLyeAAe7+SDLqTQfbG1tyybsPzJKGT1x1H/Tb7d8wHuvy2c2Pf4MPv00c9nvre37v790aaLk7/cHEkE1oMLUvp0DJ9GziUljowW5faWDL40sF6f3zJEmvmau0zYom17mOX67BOybKnXS6pXU/IJhfj3C/X0f176bKrrd9cdnlHbPog/Y/+P4gv9cjV2Qf72O68R/v2cN/V/flSH9/G4Xn17qGlTq7e/If+GEJNV9MZj3aMY/r16lI8ekKlRiwStnaxuhiPDv8wHveUzjUdFnZwA+QCyhtILTHxOsqbSNaBWoZvI8kBtXKO4iBZAzmP8hq2bdNl2dBujOsLXCOjZeb1D7jGurY+r19nr0Qjr+Xnufr+qV5C4mMVJqV8Lj7aKGr0Ll6kDnf56Wm1W0j0dFuAKcYQYNigKckQ0GHz2CmmDxnRMNNR0AqGjpJWYjpUTU007mp3mY6Jnjqi8YHyWaqk8p65OFNZmi6Px8cammbe2gstPTNG+XLbbh6cyMG5HJ5FC69ZpPSjY4jpoIUbOra1baajolUSjR1tp6VDojqMimj5XEomS0S+SWKGJSvkmmHlNImtEJKWySqJpYm8SkhOjjFL5DyJGZYU5BizRL5DYgVC7sikREhjS6P3VvHBtdqNS/pHWb7pFFSx6eCz4gESskLTyZtIbCOhk9flbcWK+sImz28z3ybzmYhFMsSzNWFbsHp78OiaWBT4CpsXWRxDQpFVZiKxjYQDL9+x1kKtWHGL53eYZ4t5rIhnSGijIzyhyztU35PpwR4/8oF2jAl99hef9yeft+rzlqVQOURvqVHWygnjY3jiM8QvAL5EWAL4mn5r8A3CCuC3AN8hrELTCWsI6wh5hE2A77FHntMqqKgCFLFIHyiwgVnIUluEDGboE4++pt/g1IAND7OBQ17rZzOqz2pAB0IJSlhCI1CFDdygtoQ5zAVydNPX9RsWGjCSSkmUhiWgNMhBd70n63s/9tE5747PV/N6Kz7J6Bu92/9Rg59jIIWwiPAVBm6yxi0j3MJAOhjIINXddNIKAxsIt6lKDBSDPdI8VoUqVgEqWKEPlNkwdJbpgtkls3HVgA0P1cAhr6NxPwMdCDWoYQ2NwCrtkEZtjbaoFCiZjbPQgJGqyJpZxRrrJe2oTeOqdW74pP/E+46rkhwcTYbfCLsHB3mOXv/+0WiMPON3OBzcUJjjwt6w95OPU6kwxamU3x+a8A+6BripqSnOSy8PvVjUq/SSnvXzDid3ik4fDYfDlPwI53a7/dR1/Em/0+l2yB7B9fsxH3P5Z0VR9CcSif8AZzHnlp0LAAA=";
+    const INTRO_1_BASE64 = "H4sICLnchGkAA1BNMC5NRFgAjVL/axtlHH7vcpe7S5tLNtOVpq1NU2zTpK42S1K/TNsypVPsNhjUFoKkSdDb6bbkCg6FNfZ+6a8KGp2/jAobU0wgoRM7mV9mFXXz2/8ggrAfLP1lkOtT3zfpclEr9ODlns/zPp/n89y976mpY8uXZqZOPDsVCGWGzy2czZwPBJYnlyfNl8yU+aqZpcgwFynOm4uMDwTSrwfMj8xb5l9ul58IfxAf9wE/7bjq2BFOCheFqvD7vZ2du9vE4rbIBKmtbKgSUk9CW0SuUFv+1UOrMWjHkcvXVm6zKgRtGLmZDc9+dRYfQGoYWgS5k9+qMlIT0N6od/3Gqhi008gt1VbusOq+jjnYOlbZOlY1dRYXsGf9K7vcmom5N3XyPrP3IRWBdgS5+e9dAlIj0BLIJX9geBTaBHIv/8jwbvdthndz3mF4HFqSzXjzJ1Y9Bi3zs3wAqSegvfKLfLCRgQbo9WySezvbAjsDQmrF1YEgFgZwpgP5RMnrxEIQZ3zIx1bVfpt39zf5D33ROn8I+fGyW7H59qDNq7Z+tSds+9DvbfJtAy3+DTJ+jZrUmY/bBj5xhUuDznpYbjfsCllvl5GOQh+HcYqdb/ph6IdhTH/FcBj6EIzJdbVFQyc2NZ5WjcX333BTIgb9cRinv2NNh6GPwjj+dYvZDXUfGnYx/jF1P8n+V0OTIR2BHoZx7KYiID0CPQLj6S/oueojMJ750iXarYpoZ2J4FPoYjOduMfwI9CMwnv9GOoD0GPQ4jBMb9Co0I/R467+Xt3j6f8VasSJ6kPGXpBAyPWtSAw8xrFjcYNXpqTpD12W1Kg1dly0+xLZFLzLdFfmpimI5ZutdLyDT+5kzWTcW7xuXBC+y3RWF6bjZsugtSxNlyeLnK5KKrL/kDCHbsybXsdTAzC/b+6nzRWQfXJce2iTbDnoH7vJEFsifRy0HV3uroL6rFBJFuuibr10iONuJi/7P2+f2VpeoskwXffN4rQtLXTzOHaoqESz511zBvZuuuArxq7TpCmu60IVC16M434mC/ybr2CQk6uknF7jQ8AyZK869w3GizNFnK7YV5xpb4aFJMjf7futWgh/xiCLHdQ8SMp9MJt9Ti293trmV6Y54wnHUE81H+d4OQvr6fH2SdPkyvfvk4ANOp9AwDPpi/5klNgz9exj+DefY0/bIBQAA";
+    const INTRO_2_BASE64 = "H4sICOrlhGkAA1BNOS5NRFgA7ZZLTxpRFMfvMK9G0tCF8QFYmSlopS6ktSw0qYDpoos23bRxqYiNVqCxQZuuKHyBbrpoE03jzi7YkEEyOjhJt/0S/QAu2rgYE/XYO4/LCANoF+rGGQKc3/9/z32cOYGX8enCt+fxF8/igfvzI9m5zPy7QKAQK8QCxdnicnG5ECsm8WcKRysmDyQ/Boo/ij+Lf253eZFbRt38BP+ZV/jfXfvuGXfFXT08Pd0/6TmmPQcIoaNPMgezEVgUeJjNwyKiNAJkDpmItxFLNSNNtgbKNCVxFU7bJsK2JRhfdLLNWEAiFolYJMsiEYszvb4anXBm7JK5XVpTLJvissbVyLgaSV3jCeEc5Oo8NbIxx4p3LbBLW2DHAjsXP4sWNTNjV1MKu4BmTLXTOYnRKhasEFeH0tLnltaQdCK12hHfsCHU8TkypCZydZ66pX48XLu9S6xzpxrZqsxQnUvFN8jkZNqWsn2pz5YSnV9K13+UkmpRSsbVsGJGZuxnnGrXBdfatzWKbVyywtUXVB+1Z4E91gIqWbJKplJJYpVzkBvPBT0dTvXSPcTi+osOT096j2n8E3m0gTYjEVjyw8pjbUvdSsNcCJYGYCVawnguaCsZWxlrUvJT+aluI2kfSVqKYHgXkkF464P345t6OLg5pjvxPW6Y+y1zSltX1zPJM+92Qu8xnTBMkhCHtAC5ibKQHyrrgQi5SZuKebos2Fy03aGyCKlRSI9C7qnKQCoB6VeQy/5ibcralGtJr8DLnZfhsrzXtuOb07mgl6eNXvAZ/ZI42pDxY74wApkQrD6p4nao6nEYMsOwGmvQcFNUhQZVbBgZqoqwEISMH1b1Ttab+Y45l5/MVcOjsyOwllDwRIoehGFt2qZ4CkWwuWi7Q4oIb0KQHYC1qFZS8aukJ9fvHtbDMyydR4IwiK/v+ML/1pEHX70PPQL6QAV9ETTz+usXimJvUfg6GD+I9plSaCDqkPpN6Z73kUPymtKwOOmQfKYUHo45JL8pPQhPO6R/tD+sOrYMAAA=";
     const AUDIENCE_BASE64 = "H4sICPN/fmkAA1BNMC5NRFgAjVL/axtlHH7vcpe7S5tLNtOVpq1NU2zTpK42S1K/TNsypVPsNhjUFoKkSdDb6bbkCg6FNfZ+6a8KGp2/jAobU0wgoRM7mV9mFXXz2/8ggrAfLP1lkOtT3zfpclEr9ODlns/zPp/n89y976mpY8uXZqZOPDsVCGWGzy2czZwPBJYnlyfNl8yU+aqZpcgwFynOm4uMDwTSrwfMj8xb5l9ul58IfxAf9wE/7bjq2BFOCheFqvD7vZ2du9vE4rbIBKmtbKgSUk9CW0SuUFv+1UOrMWjHkcvXVm6zKgRtGLmZDc9+dRYfQGoYWgS5k9+qMlIT0N6od/3Gqhi008gt1VbusOq+jjnYOlbZOlY1dRYXsGf9K7vcmom5N3XyPrP3IRWBdgS5+e9dAlIj0BLIJX9geBTaBHIv/8jwbvdthndz3mF4HFqSzXjzJ1Y9Bi3zs3wAqSegvfKLfLCRgQbo9WySezvbAjsDQmrF1YEgFgZwpgP5RMnrxEIQZ3zIx1bVfpt39zf5D33ROn8I+fGyW7H59qDNq7Z+tSds+9DvbfJtAy3+DTJ+jZrUmY/bBj5xhUuDznpYbjfsCllvl5GOQh+HcYqdb/ph6IdhTH/FcBj6EIzJdbVFQyc2NZ5WjcX333BTIgb9cRinv2NNh6GPwjj+dYvZDXUfGnYx/jF1P8n+V0OTIR2BHoZx7KYiID0CPQLj6S/oueojMJ750iXarYpoZ2J4FPoYjOduMfwI9CMwnv9GOoD0GPQ4jBMb9Co0I/R467+Xt3j6f8VasSJ6kPGXpBAyPWtSAw8xrFjcYNXpqTpD12W1Kg1dly0+xLZFLzLdFfmpimI5ZutdLyDT+5kzWTcW7xuXBC+y3RWF6bjZsugtSxNlyeLnK5KKrL/kDCHbsybXsdTAzC/b+6nzRWQfXJce2iTbDnoH7vJEFsifRy0HV3uroL6rFBJFuuibr10iONuJi/7P2+f2VpeoskwXffN4rQtLXTzOHaoqESz511zBvZuuuArxq7TpCmu60IVC16M434mC/ybr2CQk6uknF7jQ8AyZK869w3GizNFnK7YV5xpb4aFJMjf7futWgh/xiCLHdQ8SMp9MJt9Ti293trmV6Y54wnHUE81H+d4OQvr6fH2SdPkyvfvk4ANOp9AwDPpi/5klNgz9exj+DefY0/bIBQAA";
     const GAME_OVER_SOUND_BASE64 = "H4sICM9/fmkAA1BNNS5NRFgAbZBNaxNhEMdnkzbN5m2T2HbXvuBSfElim2ZN1QaVpFiQHpSCUPoGabJBsIm1NvHgQbZZ8Sq0qKAeQm9VsgeppSltpHjRb+DBT1DIwVAwKUknThLRQ3x4GOaZ//P/zTCTYzfTb26P3ZkYE12yeynyQH4oiulQOiSq99QFNaHG0iF1SX2sxtRHzboYfSKq79Uv6k+rqQd0DuiEKXgJPxgX85TJMt91XLlWK5y0VfVHcK3yCrLmUVzo2bJexYW+XD3yWfEs5Tvc5ZxzpKADow0OmSO4UcrNFlZz7UqgCOXaif6Pf6DuifBZ2xWMEGVmy05J77bd24aR/n/uYGl/vrC6b1JGinDSXtXDEUDlLek2mDhkxvesnRh146KEK948N41RFy76cGVoz+HHxWFcGdylLtELOfsISbtzShAIo2vB5Dknyh6M+zEpHTimUHZjXMKkN0+++CVMDn82B1A+j/EhTHq2nVRxf5pRgjqCMS2wA3M3xlyY8GGK5pjCmAcTfkxJBwT7W6exYm5MSJjy5okXO4eJi5hyfZxTQo01Gao6qDyHDTagsQLdDRO/wZ7WBgY2WX6TFT6wQpbqISXYSzN0VBmmPsMLmmHQQnsb10y8Zp7XzF2abVYzCpqlW5OU+/SVrTL06VuxsVyyPBsvZWDHpNQjyzeiUFlrFgNNKThZpK0xLs6o9zMevwThvnCYNZjWyW/8VT426pqSW/K2SHofRyn0nRLgDB1DJpOpv2scx7U1Jf4/UnsT6PINtQANo9zysg/6eQHC5LJaLBmHk3NMH89aOq5zNiCmCA0grK+t3Qp97dCXysesnmN80rJskEHoEu5Sq9f8O7uVWpl+A4BOJKspAwAA";
     const HIGHSCORE_BASE64 = "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";
@@ -1876,10 +1908,12 @@
     const EXTRA_LIFE_SOUND_BASE64 = "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";
 
     const SOUNDS = {
-      musicBlockTown: { base64: BLOCK_TOWN_SOUND_BASE64, buffer: null, source: null, format: "MDX", soundLevel: 0.4, musicName: "musicBlockTown" },
+      musicBlockTown: { base64: BLOCK_TOWN_SOUND_BASE64, buffer: null, source: null, format: "MDX", soundLevel: 0.35, musicName: "musicBlockTown" },
       pacmanS: { base64: PACMAN_S_PARK_SOUND_BASE64, buffer: null, format: "MDX", soundLevel: 0.6, musicName: "pacmanS" },
       sandboxLand: { base64: SANDBOX_LAND_SOUN_BASE64, buffer: null, format: "MDX", soundLevel: 0.6, musicName: "sandboxLand" },
       junglySteps: { base64: JUNGLY_STEPS_SOUND_BASE64, buffer: null, format: "MDX", soundLevel: 0.6, musicName: "junglySteps"  },
+      intro1: { base64: INTRO_1_BASE64, buffer: null, format: "MDX", soundLevel: 0.6, musicName: "intro1"  },
+      intro2: { base64: INTRO_2_BASE64, buffer: null, format: "MDX", soundLevel: 0.6, musicName: "intro2"  },
       audience: { base64: AUDIENCE_BASE64, buffer: null, source: null, format: "MDX", soundLevel: 1, musicName: "audience" },
       gameOver: { base64: GAME_OVER_SOUND_BASE64, buffer: null, format: "MDX", soundLevel: 1, musicName: "gameOver"  },
       highScore: { base64: HIGHSCORE_BASE64, buffer: null, format: "MDX", soundLevel: 1, musicName: "highScore"  },
@@ -2357,6 +2391,27 @@
       LEVEL_16_MAP,
     ];
 
+    function attemptStartGame() {
+        if (cutsceneManager && cutsceneManager.requestId) return;
+
+        if (isGameOver) {
+            startGame();
+            return;
+        }
+
+        if (currentLevel === 1) {
+            if (cutsceneManager) cutsceneManager = null;
+            cutsceneManager = new CutsceneManager('sceneCanvas', 'overlayCanvas');
+            cutsceneManager.playAct(1, () => startGame());
+        } else if (currentLevel === 4) {
+            if (cutsceneManager) cutsceneManager = null;
+            cutsceneManager = new CutsceneManager('sceneCanvas', 'overlayCanvas');
+            cutsceneManager.playAct(2, () => startGame());
+        } else {
+            startGame();
+        }
+    }
+
     function startLevel(levelIndex) {
       clearLevel();
       currentLevel = levelIndex;
@@ -2402,21 +2457,26 @@
       titleEl.style.display = "block";
       msgEl.classList.remove("blinking");
       msgEl.classList.add("blinking"); // Restart blink
-      msgEl.innerHTML = "PRESS SPACEBAR TO PLAY";
 
       if (levelIndex === 1) {
+        msgEl.innerHTML = "PRESS SPACEBAR TO PLAY";
         // Écran Titre Principal (Attract Mode)
         gameState = STATE_TITLE;
         titleScreenTimer = performance.now(); // Reset timer pour le loop attract
 
         logoEl.style.display = "block"; // Afficher le logo
       } else {
+        msgEl.innerHTML = "GET READY!";
         // Transition directe vers niveau suivant (Pas de boucle attract)
         gameState = STATE_GAME; // En attente de start (isGameRunning est false)
 
         titleEl.innerText = "LEVEL " + levelIndex;
         titleEl.style.color = "#FFD700";
         logoEl.style.display = "none"; // Cacher le logo pour voir le niveau derrière
+        
+        setTimeout(() => {
+             if (!isGameRunning && !isGameOver) attemptStartGame();
+        }, 2000);
       }
 
       if (pacman) {
@@ -3410,7 +3470,7 @@
       // On ne peut démarrer QUE via Espace et si on n'est pas en mode debug
       if (!isGameRunning || isGameOver || gameState !== STATE_GAME) {
         if (event.code === "Space" && !isDebugMode) {
-          startGame();
+          attemptStartGame();
         }
         return;
       }
@@ -3772,18 +3832,32 @@
       powerModeEndTime = Date.now() + POWER_PELLET_DURATION;
       ghostsEatenCount = 0;
       ghosts.forEach((g) => {
-        if (g.userData.state !== "DEAD") {
+        // MODIF: On exclut les fantômes dans la maison ou en train de sortir pour éviter les bugs de pathfinding
+        if (g.userData.state !== "DEAD" && g.userData.state !== "IN_HOUSE" && g.userData.state !== "LEAVING_HOUSE") {
+          
+          // CORRECTION BUG MUR : Vérifier si le demi-tour est valide
+          const potentialTarget = g.targetWorldPos
+            .clone()
+            .add(g.currentDir.clone().negate().multiplyScalar(TILE_SIZE));
+          
+          const gridX = Math.round((potentialTarget.x + levelMapOffsetX) / TILE_SIZE);
+          const gridZ = Math.round((potentialTarget.z + levelMapOffsetZ) / TILE_SIZE);
+
+          // On ne fait demi-tour que si la case cible n'est pas un mur
+          if (getMapTile(gridX, gridZ) !== 1) {
+             g.currentDir.negate();
+             g.targetWorldPos.copy(potentialTarget);
+          }
+
           g.userData.state = "SCARED";
           g.userData.ghostMat.color.setHex(0x0000ff);
           g.userData.ghostMat.transparent = false;
-          g.currentDir.negate();
-          g.targetWorldPos.add(g.currentDir.multiplyScalar(TILE_SIZE));
         }
       });
     }
 
     function restoreGhost(ghost) {
-      ghost.userData.state = "NORMAL";
+      ghost.userData.state = "NORMAL"; //
       ghost.userData.ghostMat.color.setHex(ghost.userData.originalColor);
       ghost.userData.ghostMat.transparent = false;
       ghost.userData.ghostMat.opacity = 1.0;
@@ -3864,7 +3938,7 @@
         });
       }
 
-      ghosts.forEach((ghost) => {
+      ghosts.forEach((ghost, i) => {
         // --- ANIMATION VERTICALE ---
         // 1. Priorité au Bump (Rebond)
         if (ghost.userData.isBumping) {
@@ -3879,8 +3953,10 @@
           }
         }
         // 2. Animation Maison (Gros Bobbing)
-        else if (ghost.userData.state === "IN_HOUSE") {
-          ghost.position.y = Math.abs(Math.sin(Date.now() / 300)) * 2;
+        else if (ghost.userData.state === "IN_HOUSE") { // MODIFICATION: Remplacer le saut par un flottement doux
+          // On applique un flottement doux au lieu d'un saut.
+          // Le décalage avec 'i' désynchronise légèrement leur mouvement vertical pour un effet plus naturel.
+          ghost.position.y = Math.sin(Date.now() / 250 + i * 0.5) * 0.5;
           // On sort ici pour ne pas exécuter le mouvement X/Z
           updateEntityGridPos(ghost);
           return;
@@ -4149,7 +4225,7 @@
             ghost.userData.headMesh.visible = false;
             playSound("ghostEaten");
             ghostsEatenCount++;
-            const points = 150 + (ghostsEatenCount - 1) * 75;
+            const points = 200 * Math.pow(2, ghostsEatenCount - 1);
             score += points;
             createFloatingScore(points, ghost.position);
             document.getElementById("score").innerText = score;
@@ -4305,7 +4381,7 @@
 
       // --- MISE À JOUR DES INTENSITÉS LUMINEUSES ---
       const dayAmbient = 1;
-      const nightAmbient = 0.04;
+      const nightAmbient = 0.06;
       const dayDirectional = 0.9;
       const nightDirectional = 0.06;
 
@@ -4608,7 +4684,7 @@
       // GESTION ETATS ECRANS
       if (gameState === STATE_TITLE) {
         // Vérifier timer
-        if (now - titleScreenTimer > TITLE_DURATION && titleScreenTimer > 0) {
+        if (now - titleScreenTimer > TITLE_DURATION && titleScreenTimer > 0 && (!cutsceneManager || !cutsceneManager.requestId)) {
           // Switch to High Score
           gameState = STATE_HIGHSCORE;
           highScoreTimer = now; // Initialiser le timer High Score
@@ -4679,166 +4755,824 @@
       }
     }
 
-/**
- * MercuryFallback - Une simulation de batterie PCM8 pour Pac-Mania
- * Utilise l'API Web Audio pour synthétiser les sons sans fichiers externes.
- */
-class MercuryFallback {
-    constructor(bpm = 155) { // BPM approximatif de Block Town
-        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        this.bpm = bpm;
-        this.isPlaying = false;
-        this.nextNoteTime = 0;
-        this.timerID = null;
-        this.beatCount = 0;
-        
-        // Le motif rythmique de Pac-Mania (1 = Kick, 2 = Snare, 3 = HiHat)
-        // C'est un rythme disco simple : Kick - Hat - Snare - Hat
-        this.pattern = [1, 3, 2, 3]; 
-    }
-
-    // --- Synthèse Sonore (Le "Vibe" rétro) ---
-
-    playKick(time) {
-        const osc = this.audioCtx.createOscillator();
-        const gain = this.audioCtx.createGain();
-        
-        osc.connect(gain);
-        gain.connect(this.audioCtx.destination);
-
-        // Une onde sinusoïdale qui chute rapidement en fréquence (Piuuum !)
-        osc.frequency.setValueAtTime(150, time);
-        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-
-        gain.gain.setValueAtTime(1, time);
-        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
-
-        osc.start(time);
-        osc.stop(time + 0.5);
-    }
-
-    playSnare(time) {
-        // Bruit blanc pour le "Tchhh"
-        const bufferSize = this.audioCtx.sampleRate;
-        const buffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
+    /**
+     * MercuryFallback - Une simulation de batterie PCM8 pour Pac-Mania
+     * Utilise l'API Web Audio pour synthétiser les sons sans fichiers externes.
+     */
+    class MercuryFallback {
+        constructor(bpm = 155) { // BPM approximatif de Block Town
+            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            this.bpm = bpm;
+            this.isPlaying = false;
+            this.nextNoteTime = 0;
+            this.timerID = null;
+            this.beatCount = 0;
+            
+            // Le motif rythmique de Pac-Mania (1 = Kick, 2 = Snare, 3 = HiHat)
+            // C'est un rythme disco simple : Kick - Hat - Snare - Hat
+            this.pattern = [1, 3, 2, 3]; 
         }
 
-        const noise = this.audioCtx.createBufferSource();
-        noise.buffer = buffer;
-        
-        // Filtre passe-haut pour enlever les graves du bruit
-        const filter = this.audioCtx.createBiquadFilter();
-        filter.type = 'highpass';
-        filter.frequency.value = 1000;
-        
-        const gain = this.audioCtx.createGain();
-        
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.audioCtx.destination);
+        // --- Synthèse Sonore (Le "Vibe" rétro) ---
 
-        // Enveloppe courte et percutante
-        gain.gain.setValueAtTime(0.5, time);
-        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+        playKick(time) {
+            const osc = this.audioCtx.createOscillator();
+            const gain = this.audioCtx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(this.audioCtx.destination);
 
-        noise.start(time);
-        noise.stop(time + 0.2);
-        
-        // Ajouter un petit "poc" tonal pour le corps de la caisse claire
-        this.playTone(time, 200, 0.1); 
-    }
+            // Une onde sinusoïdale qui chute rapidement en fréquence (Piuuum !)
+            osc.frequency.setValueAtTime(150, time);
+            osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
 
-    playHiHat(time) {
-        // Similaire au snare mais plus aigu et plus court
-        const bufferSize = this.audioCtx.sampleRate;
-        const buffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
+            gain.gain.setValueAtTime(1, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+
+            osc.start(time);
+            osc.stop(time + 0.5);
         }
 
-        const noise = this.audioCtx.createBufferSource();
-        noise.buffer = buffer;
+        playSnare(time) {
+            // Bruit blanc pour le "Tchhh"
+            const bufferSize = this.audioCtx.sampleRate;
+            const buffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
 
-        const filter = this.audioCtx.createBiquadFilter();
-        filter.type = 'highpass';
-        filter.frequency.value = 5000; // Très aigu
+            const noise = this.audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            
+            // Filtre passe-haut pour enlever les graves du bruit
+            const filter = this.audioCtx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 1000;
+            
+            const gain = this.audioCtx.createGain();
+            
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.audioCtx.destination);
 
-        const gain = this.audioCtx.createGain();
+            // Enveloppe courte et percutante
+            gain.gain.setValueAtTime(0.5, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
 
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.audioCtx.destination);
-
-        gain.gain.setValueAtTime(0.3, time);
-        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05); // Très court
-
-        noise.start(time);
-        noise.stop(time + 0.05);
-    }
-
-    playTone(time, freq, duration) {
-        const osc = this.audioCtx.createOscillator();
-        const gain = this.audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(this.audioCtx.destination);
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.5, time);
-        gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
-        osc.start(time);
-        osc.stop(time + duration);
-    }
-
-    // --- Séquenceur (Le moteur rythmique) ---
-
-    schedule() {
-        const secondsPerBeat = 60.0 / this.bpm;
-        const lookahead = 0.1; // 100ms d'avance pour planifier
-
-        while (this.nextNoteTime < this.audioCtx.currentTime + lookahead) {
-            this.playBeat(this.nextNoteTime);
-            // On avance d'un quart de temps (noire)
-            this.nextNoteTime += secondsPerBeat; 
-        }
-        
-        if (this.isPlaying) {
-            this.timerID = requestAnimationFrame(this.schedule.bind(this));
-        }
-    }
-
-    playBeat(time) {
-        // On boucle sur le pattern (0, 1, 2, 3...)
-        const currentBeat = this.pattern[this.beatCount % this.pattern.length];
-        
-        if (currentBeat === 1) this.playKick(time);
-        if (currentBeat === 2) this.playSnare(time);
-        if (currentBeat === 3) this.playHiHat(time);
-        
-        this.beatCount++;
-    }
-
-    start() {
-        if (this.isPlaying) return;
-        
-        // Important: Débloquer l'AudioContext sur une interaction utilisateur
-        if (this.audioCtx.state === 'suspended') {
-            this.audioCtx.resume();
+            noise.start(time);
+            noise.stop(time + 0.2);
+            
+            // Ajouter un petit "poc" tonal pour le corps de la caisse claire
+            this.playTone(time, 200, 0.1); 
         }
 
-        this.isPlaying = true;
-        this.beatCount = 0;
-        this.nextNoteTime = this.audioCtx.currentTime + 0.1; // Petit délai de départ
-        this.schedule();
+        playHiHat(time) {
+            // Similaire au snare mais plus aigu et plus court
+            const bufferSize = this.audioCtx.sampleRate;
+            const buffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = this.audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            const filter = this.audioCtx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 5000; // Très aigu
+
+            const gain = this.audioCtx.createGain();
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.audioCtx.destination);
+
+            gain.gain.setValueAtTime(0.3, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05); // Très court
+
+            noise.start(time);
+            noise.stop(time + 0.05);
+        }
+
+        playTone(time, freq, duration) {
+            const osc = this.audioCtx.createOscillator();
+            const gain = this.audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(this.audioCtx.destination);
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.5, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+            osc.start(time);
+            osc.stop(time + duration);
+        }
+
+        // --- Séquenceur (Le moteur rythmique) ---
+
+        schedule() {
+            const secondsPerBeat = 60.0 / this.bpm;
+            const lookahead = 0.1; // 100ms d'avance pour planifier
+
+            while (this.nextNoteTime < this.audioCtx.currentTime + lookahead) {
+                this.playBeat(this.nextNoteTime);
+                // On avance d'un quart de temps (noire)
+                this.nextNoteTime += secondsPerBeat; 
+            }
+            
+            if (this.isPlaying) {
+                this.timerID = requestAnimationFrame(this.schedule.bind(this));
+            }
+        }
+
+        playBeat(time) {
+            // On boucle sur le pattern (0, 1, 2, 3...)
+            const currentBeat = this.pattern[this.beatCount % this.pattern.length];
+            
+            if (currentBeat === 1) this.playKick(time);
+            if (currentBeat === 2) this.playSnare(time);
+            if (currentBeat === 3) this.playHiHat(time);
+            
+            this.beatCount++;
+        }
+
+        start() {
+            if (this.isPlaying) return;
+            
+            // Important: Débloquer l'AudioContext sur une interaction utilisateur
+            if (this.audioCtx.state === 'suspended') {
+                this.audioCtx.resume();
+            }
+
+            this.isPlaying = true;
+            this.beatCount = 0;
+            this.nextNoteTime = this.audioCtx.currentTime + 0.1; // Petit délai de départ
+            this.schedule();
+        }
+
+        stop() {
+            this.isPlaying = false;
+            cancelAnimationFrame(this.timerID);
+        }
     }
 
-    stop() {
-        this.isPlaying = false;
-        cancelAnimationFrame(this.timerID);
+    class CutsceneManager {
+        constructor(sceneCanvasId, overlayCanvasId) {
+            this.container = document.getElementById('cutscene-container');
+            this.sceneCanvas = document.getElementById(sceneCanvasId);
+            this.overlayCanvas = document.getElementById(overlayCanvasId);
+            this.ctx = this.overlayCanvas.getContext('2d');
+
+            this.renderer = new THREE.WebGLRenderer({ canvas: this.sceneCanvas, alpha: true, antialias: true });
+            this.renderer.shadowMap.enabled = true;
+            this.scene = new THREE.Scene();
+            this.scene.background = new THREE.Color(0x000000); 
+
+            this.clock = new THREE.Clock();
+            this.requestId = null;
+            this.currentAct = 0;
+            this.time = 0;
+            this.actors = {}; 
+            
+            this.viewSize = 20;
+
+            this.legoTexture = this.createLegoStudTexture();
+
+            this.resize();
+            window.addEventListener('resize', () => this.resize());
+        }
+
+        resize() {
+            const w = this.container.clientWidth;
+            const h = this.container.clientHeight;
+            this.renderer.setSize(w, h);
+            this.overlayCanvas.width = w;
+            this.overlayCanvas.height = h;
+            
+            if (this.camera) {
+                if (this.camera.isPerspectiveCamera) {
+                    this.camera.aspect = w / h;
+                } else {
+                    const aspect = w / h;
+                    const d = this.viewSize; 
+                    this.camera.left = -d * aspect;
+                    this.camera.right = d * aspect;
+                    this.camera.top = d;
+                    this.camera.bottom = -d;
+                }
+                this.camera.updateProjectionMatrix();
+            }
+        }
+
+        createLegoStudTexture() {
+            const size = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            const baseColor = '#0033cc'; 
+            ctx.fillStyle = baseColor;
+            ctx.fillRect(0, 0, size, size);
+
+            ctx.font = 'bolder 65px Arial, sans-serif'; 
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            ctx.save();
+            ctx.translate(size/2, size/2);
+            ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
+            ctx.shadowBlur = 2;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+
+            ctx.fillStyle = '#0033cc'; 
+            ctx.fillText('LEGO', 0, 0);
+            
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#002299';
+            ctx.strokeText('LEGO', 0, 0);
+            ctx.restore();
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.center.set(0.5, 0.5);
+            texture.rotation = -Math.PI / 2;
+            return texture;
+        }
+
+        renderBorder() {
+            const w = this.overlayCanvas.width;
+            const h = this.overlayCanvas.height;
+            const ctx = this.ctx;
+            ctx.clearRect(0, 0, w, h);
+
+            const bulbSize = 8;
+            const padding = 15;
+            const spacing = 20;
+            const rectX = padding;
+            const rectY = padding;
+            const rectW = w - padding * 2;
+            const rectH = h - padding * 2;
+
+            const drawBulb = (x, y, index) => {
+                const speed = 15;
+                const shift = Math.floor(this.time * speed);
+                const isOn = ((index - shift) % 6 + 6) % 6 === 0;
+
+                ctx.beginPath();
+                ctx.arc(x, y, bulbSize, 0, Math.PI * 2);
+                if (isOn) {
+                    ctx.fillStyle = '#ff3333';
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#ff0000';
+                } else {
+                    ctx.fillStyle = '#330000';
+                    ctx.shadowBlur = 0;
+                }
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            };
+
+            let bulbIndex = 0;
+            for (let x = rectX; x <= rectX + rectW; x += spacing) drawBulb(x, rectY, bulbIndex++);
+            for (let y = rectY + spacing; y <= rectY + rectH; y += spacing) drawBulb(rectX + rectW, y, bulbIndex++);
+            for (let x = rectX + rectW - spacing; x >= rectX; x -= spacing) drawBulb(x, rectY + rectH, bulbIndex++);
+            for (let y = rectY + rectH - spacing; y > rectY; y -= spacing) drawBulb(rectX, y, bulbIndex++);
+
+            ctx.fillStyle = 'white';
+            ctx.font = '60px "Press Start 2P", cursive';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(`ACT ${this.currentAct}`, rectX + 30, rectY + 30);
+        }
+
+        clearScene() {
+            while(this.scene.children.length > 0){ 
+                this.scene.remove(this.scene.children[0]); 
+            }
+            this.actors = {};
+        }
+
+        createLegoBlock() {
+            const group = new THREE.Group();
+            const legoBlue = 0x0033cc;
+            const matStandard = new THREE.MeshPhongMaterial({ color: legoBlue, shininess: 100, specular: 0x555555 });
+            const matTopStud = new THREE.MeshPhongMaterial({ color: 0xffffff, map: this.legoTexture, shininess: 80, specular: 0x222222 });
+
+            const blockWidth = 16;
+            const blockHeight = 11;
+            const baseGeo = new THREE.BoxGeometry(blockWidth, blockHeight, blockWidth);
+            const base = new THREE.Mesh(baseGeo, matStandard);
+            group.add(base);
+
+            const studY = blockHeight / 2 + 0.8;
+            const studGeo = new THREE.CylinderGeometry(2.5, 2.5, 2, 32); 
+            const studMaterials = [matStandard, matTopStud, matStandard];
+            
+            const pos = 4;
+            const coords = [
+                [-pos, -pos], [pos, -pos],
+                [-pos, pos], [pos, pos]
+            ];
+            
+            coords.forEach(coord => {
+                const stud = new THREE.Mesh(studGeo, studMaterials);
+                stud.position.set(coord[0], studY, coord[1]);
+                stud.rotation.y = -Math.PI / 2; 
+                group.add(stud);
+            });
+
+            return group;
+        }
+
+        createGhost(color) {
+            const ghostGroup = new THREE.Group();
+            const s = 0.5; 
+
+            const ghostMat = new THREE.MeshPhongMaterial({ color: color, shininess: 60 });
+
+            const bodyHeight = 5 * s;
+            const bodyRadius = 3 * s;
+            const bodyGeo = new THREE.CylinderGeometry(bodyRadius, bodyRadius, bodyHeight, 32, 4);
+            
+            const posAttribute = bodyGeo.attributes.position;
+            const vertex = new THREE.Vector3();
+            const bottomY = -bodyHeight / 2; 
+            
+            for (let i = 0; i < posAttribute.count; i++) {
+                vertex.fromBufferAttribute(posAttribute, i);
+                if (vertex.y < bottomY + 0.1) {
+                    const angle = Math.atan2(vertex.z, vertex.x);
+                    const wave = Math.sin(angle * 7);
+                    vertex.y += (wave + 1) * (0.4 * s); 
+                }
+                posAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
+            }
+            bodyGeo.computeVertexNormals();
+
+            const body = new THREE.Mesh(bodyGeo, ghostMat);
+            body.position.y = bodyHeight / 2; 
+            ghostGroup.add(body);
+
+            const headRadius = 3.03 * s;
+            const headGeo = new THREE.SphereGeometry(headRadius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+            const head = new THREE.Mesh(headGeo, ghostMat);
+            head.position.y = bodyHeight; 
+            ghostGroup.add(head);
+
+            const eyeWhiteGeo = new THREE.SphereGeometry(1 * s, 16, 16);
+            const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const eyePupilGeo = new THREE.SphereGeometry(0.5 * s, 16, 16);
+            const eyePupilMat = new THREE.MeshStandardMaterial({ color: 0x000099, emissive: 0x0000ff, emissiveIntensity: 0.2 });
+            const eyelidGeo = new THREE.SphereGeometry(1.05 * s, 16, 16, 0, Math.PI * 2, 0, Math.PI / 3.2);
+
+            const createEyeGroup = (xOffset) => {
+                const eyeGroup = new THREE.Group();
+                const w = new THREE.Mesh(eyeWhiteGeo, eyeWhiteMat);
+                eyeGroup.add(w);
+                const p = new THREE.Mesh(eyePupilGeo, eyePupilMat.clone());
+                p.position.z = 0.7 * s;
+                eyeGroup.add(p);
+                const eyelid = new THREE.Mesh(eyelidGeo, ghostMat);
+                eyelid.rotation.x = -0.5; 
+                eyeGroup.add(eyelid);
+                eyeGroup.position.set(xOffset * s, bodyHeight, 2.2 * s);
+                return eyeGroup;
+            };
+
+            ghostGroup.add(createEyeGroup(-1.2));
+            ghostGroup.add(createEyeGroup(1.2));
+            return ghostGroup;
+        }
+
+        createDetailedPacman(isMsPacman) {
+            const group = new THREE.Group();
+            const bodyGroup = new THREE.Group(); 
+            
+            const sphereRadius = 3.5;
+            const sphereSegments = 32;
+            const pacColor = 0xffff00;
+            
+            const mat = new THREE.MeshPhongMaterial({
+                color: pacColor,
+                shininess: 100,
+                specular: 0xffffff,
+            });
+
+            const mouthInsideMat = new THREE.MeshBasicMaterial({
+                color: 0x000000,
+                side: THREE.DoubleSide,
+            });
+
+            const topGeo = new THREE.SphereGeometry(sphereRadius, sphereSegments, sphereSegments, 0, Math.PI * 2, 0, Math.PI / 2);
+            const topLip = new THREE.Group();
+            topLip.add(new THREE.Mesh(topGeo, mat));
+            
+            const capGeo = new THREE.CircleGeometry(sphereRadius - 0.1, sphereSegments);
+            const topCap = new THREE.Mesh(capGeo, mouthInsideMat);
+            topCap.rotation.x = Math.PI / 2;
+            topLip.add(topCap);
+
+            const bottomGeo = new THREE.SphereGeometry(sphereRadius, sphereSegments, sphereSegments, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+            const bottomLip = new THREE.Group();
+            bottomLip.add(new THREE.Mesh(bottomGeo, mat));
+            
+            const bottomCap = new THREE.Mesh(capGeo, mouthInsideMat);
+            bottomCap.rotation.x = -Math.PI / 2;
+            bottomLip.add(bottomCap);
+
+            const tongueGeo = new THREE.CircleGeometry(sphereRadius * 0.45, 16);
+            const tongueMat = new THREE.MeshLambertMaterial({ color: 0x300000 }); 
+            const tongue = new THREE.Mesh(tongueGeo, tongueMat);
+            tongue.rotation.x = -Math.PI / 2;
+            tongue.position.set(0, 0.1, 1.2);
+            tongue.scale.set(1.2, 1.1, 1);
+            bottomLip.add(tongue);
+
+            bodyGroup.add(topLip);
+            bodyGroup.add(bottomLip);
+
+            const eyeRadius = 0.55;
+            const mouthAngle = 0.9;
+            const eyeGeo = new THREE.CircleGeometry(eyeRadius, 64, mouthAngle / 2, Math.PI * 2 - mouthAngle);
+            
+            const pos = eyeGeo.attributes.position;
+            const vec = new THREE.Vector3();
+            const curvatureRadius = 3.65; 
+            const verticalScale = 1.8;
+            
+            for (let i = 0; i < pos.count; i++) {
+                vec.fromBufferAttribute(pos, i);
+                const effectiveX = vec.x;
+                const effectiveY = vec.y * verticalScale;
+                const distSq = effectiveX * effectiveX + effectiveY * effectiveY;
+                if (distSq < curvatureRadius * curvatureRadius) {
+                    vec.z = Math.sqrt(curvatureRadius * curvatureRadius - distSq) - curvatureRadius;
+                }
+                pos.setXYZ(i, vec.x, vec.y, vec.z);
+            }
+            eyeGeo.computeVertexNormals();
+
+            const eyeMat = new THREE.MeshPhongMaterial({ color: 0x000000, side: THREE.DoubleSide, specular: 0x333333, shininess: 20 });
+            const eyeLeft = new THREE.Mesh(eyeGeo, eyeMat);
+            const eyeRight = new THREE.Mesh(eyeGeo, eyeMat);
+            eyeLeft.scale.set(1, verticalScale, 1);
+            eyeRight.scale.set(1, verticalScale, 1);
+
+            const vecLeft = new THREE.Vector3(1.0, 1.9, 2.4).normalize().multiplyScalar(3.65);
+            const vecRight = new THREE.Vector3(-1.0, 1.9, 2.4).normalize().multiplyScalar(3.65);
+            
+            eyeLeft.position.copy(vecLeft);
+            eyeRight.position.copy(vecRight);
+            eyeLeft.lookAt(vecLeft.clone().multiplyScalar(2));
+            eyeRight.lookAt(vecRight.clone().multiplyScalar(2));
+            
+            eyeLeft.rotation.z = Math.PI; 
+            eyeRight.rotation.z = 0;
+
+            topLip.add(eyeLeft);
+            topLip.add(eyeRight);
+
+            if (isMsPacman) {
+                const lashGeo = new THREE.BoxGeometry(0.12, 0.6, 0.05);
+                const lashMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+                
+                const addLashes = (eye, invertY) => {
+                    const g = new THREE.Group();
+                    const count = 5;
+                    for (let k = 0; k < count; k++) {
+                        const l = new THREE.Mesh(lashGeo, lashMat);
+                        const t = k / (count - 1);
+                        const angleStart = Math.PI / 1.2;
+                        const angleEnd = Math.PI / 2.8;
+                        const currentAngleMag = angleStart + (angleEnd - angleStart) * t;
+                        const angle = currentAngleMag * invertY;
+                        const r = 0.55;
+                        l.position.set(Math.cos(angle) * r, Math.sin(angle) * r, 0);
+                        l.rotation.z = angle - (Math.PI / 2) * invertY;
+                        g.add(l);
+                    }
+                    eye.add(g);
+                };
+                addLashes(eyeLeft, -1);
+                addLashes(eyeRight, 1);
+
+                const bowGroup = new THREE.Group();
+                const bowMat = new THREE.MeshPhongMaterial({ color: 0xff0000, shininess: 80 });
+                const bCenter = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 16), bowMat);
+                const bLeft = new THREE.Mesh(new THREE.SphereGeometry(1.3, 16, 16), bowMat);
+                bLeft.position.set(-1.6, 0.4, 0);
+                bLeft.scale.set(1, 0.8, 0.5);
+                const bRight = new THREE.Mesh(new THREE.SphereGeometry(1.3, 16, 16), bowMat);
+                bRight.position.set(1.6, 0.4, 0);
+                bRight.scale.set(1, 0.8, 0.5);
+                bowGroup.add(bCenter, bLeft, bRight);
+                bowGroup.position.set(0, 3.2, 0.8);
+                bowGroup.rotation.x = -0.4;
+                topLip.add(bowGroup);
+
+                const mole = new THREE.Mesh(new THREE.CircleGeometry(0.25, 12), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+                const molePos = new THREE.Vector3(-2.2, 1.0, 2.4).normalize().multiplyScalar(3.55);
+                mole.position.copy(molePos);
+                mole.lookAt(molePos.clone().multiplyScalar(2));
+                topLip.add(mole);
+            }
+
+            group.add(bodyGroup);
+
+            const scale = 0.45;
+            group.scale.set(scale, scale, scale);
+
+            group.userData = {
+                topLip: topLip,
+                bottomLip: bottomLip
+            };
+
+            return group;
+        }
+
+        createPacman() {
+            return this.createDetailedPacman(false);
+        }
+
+        createMsPacman() {
+            return this.createDetailedPacman(true);
+        }
+
+        createHeart() {
+            const shape = new THREE.Shape();
+            const x = 0, y = 0;
+
+            // Départ du creux supérieur central
+            shape.moveTo(x, y); 
+
+            // Lobe Gauche (Courbe de Bézier)
+            // cp1, cp2, endPoint
+            shape.bezierCurveTo(x - 3, y + 3, x - 6, y + 1, x - 6, y - 2); 
+            
+            // Coté Gauche vers la pointe basse
+            shape.bezierCurveTo(x - 6, y - 5, x - 3, y - 7, x, y - 10);
+
+            // Coté Droit remontant de la pointe (Symétrique)
+            shape.bezierCurveTo(x + 3, y - 7, x + 6, y - 5, x + 6, y - 2);
+
+            // Lobe Droit
+            shape.bezierCurveTo(x + 6, y + 1, x + 3, y + 3, x, y);
+
+            const extrudeSettings = { depth: 1, bevelEnabled: true, bevelSegments: 3, steps: 2, bevelSize: 0.5, bevelThickness: 0.5 };
+            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            
+            // Centrage parfait de la géométrie
+            geometry.computeBoundingBox();
+            const xMid = -0.5 * (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
+            const yMid = -0.5 * (geometry.boundingBox.max.y - geometry.boundingBox.min.y);
+            geometry.translate(xMid, yMid, 0);
+
+            const material = new THREE.MeshPhongMaterial({ color: 0xf11955, shininess: 80, transparent: true, opacity: 1 });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.scale.set(0.4, 0.4, 0.4);
+            
+            // Pas de rotation initiale (le cœur est dessiné face à la caméra Z)
+            return mesh;
+        }
+
+        setupAct1() {
+            this.currentAct = 1;
+            this.clearScene();
+            this.time = 0;
+
+            this.viewSize = 22; 
+
+            const aspect = window.innerWidth / window.innerHeight;
+            const d = this.viewSize;
+            this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+            this.camera.position.set(20, 20, 20);
+            this.camera.lookAt(0, 0, 0);
+
+            const ambient = new THREE.AmbientLight(0x404040);
+            this.scene.add(ambient);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            dirLight.position.set(10, 20, 10);
+            this.scene.add(dirLight);
+
+            const lego = this.createLegoBlock();
+            lego.position.y = 2.5;
+            this.scene.add(lego);
+
+            this.actors.pacman = this.createPacman();
+            this.scene.add(this.actors.pacman);
+
+            this.actors.ghosts = [];
+            const colors = [0xff0000, 0xffb8ff, 0x00ffff, 0xffb852];
+            colors.forEach((col) => {
+                const g = this.createGhost(col);
+                this.actors.ghosts.push(g);
+                this.scene.add(g);
+            });
+            startMdxPlayback(SOUNDS.intro1);
+        }
+
+        animateAct1(dt) {
+            // 1. VITESSE & DECALAGE DE DEPART
+            const speed = 1.3; 
+            // Math.PI * 1.35 (env 243°) place Pacman derrière (en bas à gauche du bloc)
+            const startOffset = Math.PI * 1.35; 
+            const radius = 14.5; 
+            
+            const angleP = this.time * speed + startOffset; 
+            
+            // Positionnement
+            this.actors.pacman.position.x = Math.sin(angleP) * radius;
+            this.actors.pacman.position.z = Math.cos(angleP) * radius;
+            this.actors.pacman.position.y = -2;
+            
+            // Orientation vers l'avant (Tangente)
+            this.actors.pacman.rotation.y = angleP + Math.PI / 2;
+
+            // Animation de la bouche
+            const biteSpeed = 10;
+            const maxOpen = 0.5;
+            const bite = (Math.sin(this.time * biteSpeed) + 1) * 0.5 * maxOpen;
+
+            if (this.actors.pacman.userData.topLip) {
+                this.actors.pacman.userData.topLip.rotation.x = -bite;
+                this.actors.pacman.userData.bottomLip.rotation.x = bite;
+            }
+
+            // Fantômes
+            this.actors.ghosts.forEach((ghost, i) => {
+                const delay = 0.5 + (i * 0.3);
+                const angleG = (this.time * speed) - delay + startOffset;
+                ghost.position.x = Math.sin(angleG) * radius;
+                ghost.position.z = Math.cos(angleG) * radius;
+                ghost.position.y = -3 + Math.sin(this.time * 5 + i) * 0.2;
+                
+                const lookTarget = this.actors.pacman.position.clone();
+                lookTarget.y = ghost.position.y;
+                ghost.lookAt(lookTarget);
+            });
+        }
+
+        setupAct2() {
+            this.currentAct = 2;
+            this.clearScene();
+            this.time = 0;
+
+            this.viewSize = 15;
+
+            const aspect = window.innerWidth / window.innerHeight;
+            const d = this.viewSize;
+            this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+            // MODIFICATION: Caméra légèrement surélevée pour une vue plongeante
+            this.camera.position.set(0, 10, 20);
+            this.camera.lookAt(0, 0, 0);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(0, 5, 10);
+            this.scene.add(dirLight);
+            this.scene.add(new THREE.AmbientLight(0x555555));
+
+            this.actors.pac = this.createPacman();
+            this.actors.pac.position.set(-20, -2, 0); 
+            this.actors.pac.rotation.y = Math.PI / 2; 
+            this.scene.add(this.actors.pac);
+
+            this.actors.ms = this.createMsPacman();
+            this.actors.ms.position.set(20, -2, 0); 
+            this.actors.ms.rotation.y = -Math.PI / 2; 
+            this.scene.add(this.actors.ms);
+
+            this.actors.heart = this.createHeart();
+            this.actors.heart.position.set(1.5, 6, 0);
+            this.actors.heart.visible = false;
+            this.scene.add(this.actors.heart);
+            this.act2State = 'APPROACH';
+            startMdxPlayback(SOUNDS.intro2);
+      }
+
+        animateAct2(dt) {
+            const speed = 10 * dt;
+
+            const animateMouth = (actor, openAmount) => {
+                if (actor.userData.topLip && actor.userData.bottomLip) {
+                    actor.userData.topLip.rotation.x = -openAmount;
+                    actor.userData.bottomLip.rotation.x = openAmount;
+                }
+            };
+
+            if (this.act2State === 'APPROACH') {
+                this.actors.pac.position.x += speed;
+                this.actors.ms.position.x -= speed;
+                
+                const bite = Math.abs(Math.sin(this.time * 15)) * 0.5;
+                animateMouth(this.actors.pac, bite);
+                animateMouth(this.actors.ms, bite);
+
+                if (this.actors.pac.position.x >= -1.5) {
+                    this.act2State = 'COLLIDE';
+                    this.collideTime = this.time;
+                }
+            } 
+            else if (this.act2State === 'COLLIDE') {
+                const bumpDuration = 0.4; // 400ms, comme pour les fantômes
+                const progress = (this.time - this.collideTime) / bumpDuration;
+
+                if (progress < 1.0) {
+                    // Léger recul horizontal
+                    this.actors.pac.position.x -= speed * 0.2;
+                    this.actors.ms.position.x += speed * 0.2;
+
+                    // Animation de rebond vertical sur l'axe Y
+                    const bounceHeight = 3; // Hauteur du rebond
+                    const bounceY = Math.sin(progress * Math.PI) * bounceHeight;
+                    this.actors.pac.position.y = -2 + bounceY;
+                    this.actors.ms.position.y = -2 + bounceY;
+
+                    // Rotation sur l'axe Z pour l'effet "cartoon"
+                    const maxRotation = 0.4;
+                    this.actors.pac.rotation.z = -maxRotation * Math.sin(progress * Math.PI);
+                    this.actors.ms.rotation.z = maxRotation * Math.sin(progress * Math.PI);
+
+                    // Garder la bouche ouverte de surprise
+                    animateMouth(this.actors.pac, 0.4);
+                    animateMouth(this.actors.ms, 0.4);
+
+                } else {
+                    this.act2State = 'LOVE';
+                    this.actors.heart.visible = true;
+                    this.actors.heart.scale.set(0,0,0);
+                    this.loveTime = this.time;
+                    
+                    // Réinitialiser les positions et rotations à la fin du rebond
+                    this.actors.pac.position.y = -2;
+                    this.actors.ms.position.y = -2;
+                    this.actors.pac.rotation.z = 0;
+                    this.actors.ms.rotation.z = 0;
+                    animateMouth(this.actors.pac, 0);
+                    animateMouth(this.actors.ms, 0);
+                }
+            }
+            else if (this.act2State === 'LOVE') {
+                const loveProg = this.time - this.loveTime;
+                
+                // Fade out progressif
+                const fadeDuration = 4.0;
+                let opacity = Math.max(0, 1 - (loveProg / fadeDuration));
+                this.actors.heart.material.opacity = opacity;
+
+                let s = 0.4;
+                if (loveProg < 0.5) {
+                    s = 0.4 * (loveProg / 0.5); // Pop in rapide
+                }
+                const beat = 1 + Math.sin(this.time * 15) * 0.1;
+                this.actors.heart.scale.set(s * beat, s * beat, s * beat);
+                
+                this.actors.heart.position.y += dt * 3;
+                
+                this.actors.pac.rotation.z = 0.3;
+                this.actors.ms.rotation.z = -0.3;
+            }
+        }
+
+        playAct(actNumber, onComplete) {
+            this.container.style.display = 'block';
+            this.resize();
+            let limitTime = 5000;
+            if (actNumber === 1) {
+              this.setupAct1();
+            }
+
+            if (actNumber === 2) {
+              limitTime = 8000;
+              this.setupAct2();
+            }
+            if (!this.requestId) this.loop();
+            
+            // Arrêt automatique après 5 secondes
+            setTimeout(() => {
+                this.stop();
+                if (onComplete) onComplete();
+            }, limitTime);
+        }
+
+        stop() {
+            if (this.requestId) {
+                cancelAnimationFrame(this.requestId);
+                this.requestId = null;
+            }
+            this.container.style.display = 'none';
+        }
+
+        loop() {
+            this.requestId = requestAnimationFrame(() => this.loop());
+            const dt = this.clock.getDelta();
+            this.time += dt;
+            if (this.currentAct === 1) this.animateAct1(dt);
+            if (this.currentAct === 2) this.animateAct2(dt);
+            if (this.camera) this.renderer.render(this.scene, this.camera);
+            this.renderBorder();
+        }
     }
-}
 
     init();
   </script>
