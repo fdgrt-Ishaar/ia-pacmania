@@ -475,6 +475,16 @@
         LEVEL PREVIEW <span id="debug-level-num">1</span>
       </div>
 
+      <!-- QUALITY CONTROLS -->
+      <div style="margin-bottom: 15px; text-align: center;">
+        QUALITY: <span id="debug-current-quality" style="color: #fff;">HIGH</span><br/>
+        <div style="display: flex; gap: 5px; justify-content: center; margin-top: 5px;">
+          <button class="editor-btn" onclick="setQuality('LOW')">LOW</button>
+          <button class="editor-btn" onclick="setQuality('MEDIUM')">MED</button>
+          <button class="editor-btn" onclick="setQuality('HIGH')">HIGH</button>
+        </div>
+      </div>
+
       <!-- EDITOR CONTROLS -->
       <div id="editor-controls">
         <div class="palette" id="tile-palette">
@@ -587,7 +597,7 @@
         />
 
         <path
-          d="M 155,75 L 445,75 L 445,110 L 555,110 L 555,235 L 45,235 L 45,110 L 155,110 Z"
+          d="M 155,65 L 445,65 L 445,110 L 555,110 L 555,235 L 45,235 L 45,110 L 155,110 Z"
           fill="none"
           stroke="#e65a4c"
           stroke-width="2"
@@ -708,8 +718,8 @@
       <canvas id="highscore-canvas" width="400" height="350"></canvas>
       <div id="highscore-footer">
         Hello, this game is a demonstration of vibe coding. It is inspired by
-        Pacmania. However tactics and logics differs a bit from this game. hope
-        you will get as much fun to play through the 16 levels of this game as I
+        Pacmania. However tactics and logics differs a bit from the original game. Hope
+        you will get as much fun to play through the levels of this game as I
         had to build it. Feel free to enhance/fix what is needed as this game is
         far from being perfect, but the main idea was to have a taste of vibe
         coding. From a technical perspective, Gemini 3 Pro, Claude and
@@ -822,14 +832,53 @@
             `,
       };
 
+      const GlitchShader = {
+        uniforms: {
+          tDiffuse: { value: null },
+          u_time: { value: 0.0 },
+          u_amount: { value: 0.0 }
+        },
+        vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+                }
+            `,
+        fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform float u_time;
+                uniform float u_amount;
+                varying vec2 vUv;
+
+                void main() {
+                    if (u_amount <= 0.01) {
+                        gl_FragColor = texture2D(tDiffuse, vUv);
+                        return;
+                    }
+                    vec2 uv = vUv;
+                    float wave = sin(uv.y * 5.0 + u_time * 4.0) * 0.05 * u_amount;
+                    uv.x += wave;
+                    float r = texture2D(tDiffuse, uv + vec2(0.01 * u_amount, 0.0)).r;
+                    float g = texture2D(tDiffuse, uv).g;
+                    float b = texture2D(tDiffuse, uv - vec2(0.01 * u_amount, 0.0)).b;
+                    vec3 color = vec3(r, g, b);
+                    float t = (sin(u_time * 3.0 + uv.y * 5.0) + 1.0) * 0.5;
+                    vec3 tint = mix(vec3(0.0, 1.0, 0.5), vec3(1.0, 0.0, 0.2), t);
+                    color = mix(color, color * tint * 1.5, u_amount * 0.5);
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `
+      };
+
       // --- GAME CONFIGURATION ---
       const CONFIG = {
         GAME: {
           TILE_SIZE: 10,
           START_LEVEL: 1,
           LIVES: 3,
-          NEXT_LIFE_THRESHOLD_START: 5000,
-          NEXT_LIFE_THRESHOLD_STEP: 7500,
+          NEXT_LIFE_THRESHOLD_START: 10000,
+          NEXT_LIFE_THRESHOLD_STEP: 15000,
           TITLE_DURATION: 5000,
           MAX_SCORES: 10,
           LS_KEY: "pacmania_lego_scores",
@@ -908,8 +957,8 @@
           FLOOR_SIZE: 520,
         },
         SURPRISE_GIFT: {
-          SPAWN_DELAY_MIN: 60000,
-          SPAWN_DELAY_MAX: 70000,
+          SPAWN_DELAY_MIN: 30000,
+          SPAWN_DELAY_MAX: 45000,
           DURATION: 10000,
           HEIGHT: 4,
           FLOAT_AMPLITUDE: 1.5,
@@ -922,7 +971,7 @@
         NIGHT_CYCLE: {
           DURATION: 90000, // Full day/night cycle duration (ms)
           DAY_AMBIENT: 1.0, // Ambient light intensity during day
-          NIGHT_AMBIENT: 0.06, // Ambient light intensity during night
+          NIGHT_AMBIENT: 0.1, // Ambient light intensity during night
           DAY_DIR: 0.9, // Directional light intensity during day
           NIGHT_DIR: 0.06, // Directional light intensity during night
           FLASHLIGHT_MULT: 4.0, // Flashlight intensity multiplier
@@ -933,8 +982,8 @@
         SCORES: {
           GUM: 10,
           SUPER_GUM: 50,
-          GIFT: 1000,
-          GIFT_NIGHT_BONUS: 1000,
+          GIFT: 5000,
+          GIFT_NIGHT_BONUS: 7500,
           GHOST_BASE: 200,
         },
       };
@@ -1582,7 +1631,8 @@
       let isNight = false;
 
       // POST PROCESSING VARS
-      let composer, tiltShiftPass;
+      let composer, tiltShiftPass, glitchPass;
+      let glitchEndTime = 0;
 
       // EDITOR VARS
       let isEditorMode = false;
@@ -1675,6 +1725,10 @@
       function refreshDebugMap() {
         const numEl = document.getElementById("debug-level-num");
         if (numEl) numEl.innerText = debugLevelIndex;
+
+        const qEl = document.getElementById("debug-current-quality");
+        if (qEl) qEl.innerText = CONFIG.GRAPHICS.QUALITY_TIER;
+
         currentDebugMapData = JSON.parse(
           JSON.stringify(getMapDataForLevel(debugLevelIndex)),
         );
@@ -2220,11 +2274,129 @@
 
         ctx.fillStyle = "#FFFFFF";
         ctx.font = '12px "Press Start 2P"';
-        ctx.fillText("1000 PTS", 170, y + 15);
+        ctx.fillText(CONFIG.SCORES.GIFT + " PTS", 170, y + 15);
 
         ctx.fillStyle = "#FF69B4";
         ctx.font = '10px "Press Start 2P"';
         ctx.fillText("+ MYSTERY BONUS!", 170, y + 35);
+      }
+
+      function reloadLevelGraphics() {
+        // 1. Save State
+        const pacmanState = {
+            pos: pacman.position.clone(),
+            rot: pacman.rotation.clone(),
+            bodyRot: pacman.body.rotation.clone(),
+            grid: { ...pacman.gridPos },
+            target: pacman.worldPosTarget.clone(),
+        };
+        
+        const ghostsState = ghosts.map(g => ({
+            pos: g.position.clone(),
+            rot: g.rotation.clone(),
+            grid: { ...g.gridPos },
+            target: g.targetWorldPos.clone(),
+            dir: g.currentDir.clone(),
+            state: g.userData.state,
+            lastCollisionTime: g.userData.lastCollisionTime,
+            isBumping: g.userData.isBumping,
+            bumpStartTime: g.userData.bumpStartTime,
+            corneringStart: g.userData.corneringStart
+        }));
+
+        // 2. Clear Scene
+        if (pacman) scene.remove(pacman);
+        ghosts.forEach((g) => scene.remove(g));
+        pellets.forEach((p) => scene.remove(p));
+        walls.forEach((w) => scene.remove(w));
+        
+        ghosts = [];
+        pellets = [];
+        walls = [];
+        pacman = null;
+
+        // 3. Rebuild
+        createLevel(currentLevelColors);
+        createPacman();
+        createGhosts();
+        if (isGhostDuplicated) createGhosts();
+
+        // 4. Restore State
+        // Pacman
+        pacman.position.copy(pacmanState.pos);
+        pacman.rotation.copy(pacmanState.rot);
+        pacman.body.rotation.copy(pacmanState.bodyRot);
+        pacman.gridPos = pacmanState.grid;
+        pacman.worldPosTarget.copy(pacmanState.target);
+        
+        // Ghosts
+        for(let i=0; i<ghosts.length; i++) {
+            const g = ghosts[i];
+            const s = ghostsState[i];
+            if(s) {
+                g.position.copy(s.pos);
+                g.rotation.copy(s.rot);
+                g.gridPos = s.grid;
+                g.targetWorldPos.copy(s.target);
+                g.currentDir.copy(s.dir);
+                
+                g.userData.state = s.state;
+                g.userData.lastCollisionTime = s.lastCollisionTime;
+                g.userData.isBumping = s.isBumping;
+                g.userData.bumpStartTime = s.bumpStartTime;
+                g.userData.corneringStart = s.corneringStart;
+                
+                if (g.userData.state === 'SCARED') {
+                    g.userData.ghostMat.color.setHex(0x0000ff);
+                } else if (g.userData.state === 'DEAD') {
+                    g.userData.bodyMesh.visible = false;
+                    g.userData.headMesh.visible = false;
+                }
+                
+                if (isReverseRolesActive) {
+                       if (g.userData.bodyMesh && g.userData.bodyMesh.parent) {
+                            g.userData.bodyMesh.parent.visible = false;
+                       }
+                       if (g.userData.pacProxy) g.userData.pacProxy.visible = true;
+                }
+            }
+        }
+        
+        if (isReverseRolesActive && pacman) {
+            pacman.body.visible = false;
+            if (pacman.ghostProxy) pacman.ghostProxy.visible = true;
+        }
+        
+        // Update lights
+        const shadowSize = CONFIG.GRAPHICS.SHADOW_MAP_SIZE;
+        if (shadowSize != -1) {
+          dirLight.castShadow = true;
+          dirLight.shadow.mapSize.width = shadowSize;
+          dirLight.shadow.mapSize.height = shadowSize;
+        } else {
+          dirLight.castShadow = false;
+        }
+      }
+
+      function setQuality(tier) {
+        localStorage.setItem("pacmania_lego_quality", tier);
+        configureGraphics(tier);
+        
+        if (tier === "HIGH" && !composer) {
+            initPostProcessing();
+        }
+        
+        if (pacman && ghosts.length > 0) {
+            reloadLevelGraphics();
+        } else {
+            startLevel(currentLevel);
+        }
+        
+        // Restore debug overlay since startLevel hides it
+        if (isDebugMode) {
+            showScreen("debug-overlay");
+            refreshDebugMap();
+        }
       }
 
       function initEditorPalette() {
@@ -6084,9 +6256,12 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
 
       function playLevelMusic() {
         if (!isGameRunning || isDying || isTransitioning || isGameOver) return;
+        
+        const key = getMusicKeyForLevel(currentLevel);
+        if (isMdxPlaying && currentMusicKey === key) return;
+
         // Stop all existing music before starting new one
         stopLevelMusic();
-        const key = getMusicKeyForLevel(currentLevel);
         const data = SOUNDS[key];
         startMdxPlayback(data);
         currentMusicKey = key; // Store which music is playing
@@ -6099,8 +6274,6 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
 
       function playPowerPelletMusic() {
         if (audioCtx.state === "suspended") audioCtx.resume();
-        // Stop background MDX music
-        stopLevelMusic();
 
         const data = SOUNDS.powerPelletMusic;
         if (data && data.buffer && !data.source) {
@@ -6351,8 +6524,11 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
         renderer.domElement.id = "game-canvas";
         document.body.appendChild(renderer.domElement);
 
-        // RUN BENCHMARK
-        const qualityTier = runBenchmark(renderer);
+        // RUN BENCHMARK OR LOAD PREFERENCE
+        let qualityTier = localStorage.getItem("pacmania_lego_quality");
+        if (!qualityTier) {
+             qualityTier = runBenchmark(renderer);
+        }
         configureGraphics(qualityTier);
 
         // Display info on screen
@@ -6451,8 +6627,12 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
         // 2. Passe Custom Tilt-Shift
         // Replaces the old BokehPass that depended on 3D
         tiltShiftPass = new THREE.ShaderPass(TiltShiftShader);
-        tiltShiftPass.renderToScreen = true;
+        tiltShiftPass.renderToScreen = false;
         composer.addPass(tiltShiftPass);
+
+        glitchPass = new THREE.ShaderPass(GlitchShader);
+        glitchPass.renderToScreen = true;
+        composer.addPass(glitchPass);
 
         console.log("[POST-PROCESSING] Custom Tilt-Shift Pass Initialized");
       }
@@ -6500,7 +6680,7 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
           if (cutsceneManager) cutsceneManager = null;
           cutsceneManager = new CutsceneManager("sceneCanvas", "overlayCanvas");
           cutsceneManager.playAct(1, () => startGame());
-        } else if (currentLevel === 4) {
+        } else if (currentLevel === 5) {
           if (cutsceneManager) cutsceneManager = null;
           cutsceneManager = new CutsceneManager("sceneCanvas", "overlayCanvas");
           cutsceneManager.playAct(2, () => startGame());
@@ -6530,6 +6710,8 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
         isInvertedVertical = false;
         noJumpEndTime = 0;
         isGhostDuplicated = false;
+        scheduleNextGift();
+        glitchEndTime = 0;
 
         // 1. Level Config Retrieval (Deduplication)
         const mapIdx = ((levelIndex - 1) % 16) + 1;
@@ -6586,7 +6768,7 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
 
           setTimeout(() => {
             if (!isGameRunning && !isGameOver) attemptStartGame();
-          }, 2000);
+          }, 1000);
         }
 
         if (pacman) {
@@ -6636,6 +6818,9 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
 
           // Initialiser le timer jour/nuit
           dayNightStartTime = Date.now();
+
+          // Reset gift timer to avoid immediate spawn if waited in menu
+          scheduleNextGift();
         }
       }
 
@@ -7195,8 +7380,8 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
         addScore(CONFIG.SCORES.GIFT, surpriseGift.mesh.position);
 
         let label = "Surprise gift!";
-        // Ensure each of the 8 effects has an equal chance (1/8 = 12.5%)
-        const effectIdx = Math.floor(Math.random() * 8);
+        // Ensure each of the 9 effects has an equal chance (1/9 = 11.1%)
+        const effectIdx = Math.floor(Math.random() * 9);
 
         switch (effectIdx) {
           case 0: // SPEED BOOST
@@ -7206,7 +7391,6 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
           case 1: // INVERTED LEVEL
             if (isInvertedVertical) {
               label = "+" + CONFIG.SCORES.GIFT + " PTS";
-              addScore(CONFIG.SCORES.GIFT, surpriseGift.mesh.position);
             } else {
               invertLevel();
               label = "INVERTED LEVEL!";
@@ -7246,6 +7430,10 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
           case 6: // EXTRA LIFE
             label = "EXTRA LIFE!";
             lives++;
+            break;
+          case 8: // GLITCH
+            glitchEndTime = performance.now() + 8000;
+            label = "SYSTEM GLITCH!";
             break;
           case 7: // POINTS ONLY
           default:
@@ -8433,11 +8621,10 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
           for (let j = i + 1; j < ghosts.length; j++) {
             const g1 = ghosts[i];
             const g2 = ghosts[j];
-            if (g1.userData.state === "DEAD" || g2.userData.state === "DEAD")
-              continue;
-
-            // Skip collision when ghosts are in house or leaving house
+            // Skip collision if either ghost is dead (eyes), in house, or leaving house
             if (
+              g1.userData.state === "DEAD" ||
+              g2.userData.state === "DEAD" ||
               g1.userData.state === "IN_HOUSE" ||
               g1.userData.state === "LEAVING_HOUSE" ||
               g2.userData.state === "IN_HOUSE" ||
@@ -8451,8 +8638,35 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
               const cd1 = g1.userData.lastCollisionTime || 0;
               const cd2 = g2.userData.lastCollisionTime || 0;
               if (now - cd1 > 500 && now - cd2 > 500) {
-                reverseGhost(g1);
-                reverseGhost(g2);
+                // --- HOUSE EXIT ANTI-JAM LOGIC ---
+                const hx = houseEntrance.x * TILE_SIZE - levelMapOffsetX;
+                const hz = houseEntrance.z * TILE_SIZE - levelMapOffsetZ;
+                const dHouseSq = (g1.position.x - hx)**2 + (g1.position.z - hz)**2;
+                
+                // If near house (within 3 tiles radius approx), prioritize exit
+                if (dHouseSq < (TILE_SIZE * 3)**2) {
+                    const g1NextDist = (g1.position.x + g1.currentDir.x - hx)**2 + (g1.position.z + g1.currentDir.z - hz)**2;
+                    const g1CurrDist = (g1.position.x - hx)**2 + (g1.position.z - hz)**2;
+                    const g1MovingAway = g1NextDist > g1CurrDist;
+                    const g2NextDist = (g2.position.x + g2.currentDir.x - hx)**2 + (g2.position.z + g2.currentDir.z - hz)**2;
+                    const g2CurrDist = (g2.position.x - hx)**2 + (g2.position.z - hz)**2;
+                    const g2MovingAway = g2NextDist > g2CurrDist;
+
+                    if (g1MovingAway && !g2MovingAway) reverseGhost(g2);
+                    else if (g2MovingAway && !g1MovingAway) reverseGhost(g1);
+                    else if (!g1MovingAway && !g2MovingAway) { reverseGhost(g1); reverseGhost(g2); }
+                } else {
+                    const canReverse = (g) => {
+                        if (g.userData.state === "DEAD") return false;
+                        const potentialTarget = g.targetWorldPos.clone().add(g.currentDir.clone().negate().multiplyScalar(TILE_SIZE));
+                        const gridX = Math.round((potentialTarget.x + levelMapOffsetX) / TILE_SIZE);
+                        const gridZ = Math.round((potentialTarget.z + levelMapOffsetZ) / TILE_SIZE);
+                        return getMapTile(gridX, gridZ) !== 1;
+                    };
+                    if (canReverse(g1)) reverseGhost(g1);
+                    else reverseGhost(g2);
+                }
+
                 g1.userData.lastCollisionTime = now;
                 g2.userData.lastCollisionTime = now;
                 // --- BUMP ANIMATION ---
@@ -8998,7 +9212,7 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
 
           // Target colors (defined here for clarity, move out to optimize)
           const dayColor = new THREE.Color(0xffffff); // Bright white reflection
-          const nightColor = new THREE.Color(0x444444); // Almost non-existent reflection
+          const nightColor = new THREE.Color(0x080808); // Almost non-existent reflection
 
           // On copie la couleur de jour, et on "lerp" (interpole) vers la nuit
           mat.specular.copy(dayColor).lerp(nightColor, dayNightCycle);
@@ -9205,6 +9419,12 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
           }
           reverseRolesEndTime = 0;
           stopPowerPelletMusic();
+
+          // Reset surprise gift if active (Player died)
+          if (surpriseGift.active) {
+            scheduleNextGift();
+          }
+          glitchEndTime = 0;
         }
 
         const mapOffsetX = levelMapOffsetX;
@@ -9384,12 +9604,19 @@ const LEVEL_X_MAP = decompressRLE(LEVEL_X_RLE.rle, LEVEL_X_RLE.width);`;
         }
 
         // --- POST-PROCESSING RENDER LOGIC ---
-        // Active ONLY IF: Quality HIGH AND Isometric View (Mode 0) AND Composer ready
+        // Active ONLY IF: Quality HIGH AND Composer ready
         if (
-          CONFIG.GRAPHICS.QUALITY_TIER === "HIGH" &&
-          viewMode === 0 &&
-          composer
+          CONFIG.GRAPHICS.QUALITY_TIER === "HIGH" && composer
         ) {
+          if (glitchPass) {
+            glitchPass.uniforms.u_time.value = now * 0.001;
+            if (now < glitchEndTime) {
+                const remaining = glitchEndTime - now;
+                glitchPass.uniforms.u_amount.value = remaining < 1000 ? remaining / 1000 : 1.0;
+            } else {
+                glitchPass.uniforms.u_amount.value = 0.0;
+            }
+          }
           composer.render();
         } else {
           renderer.render(scene, camera);
